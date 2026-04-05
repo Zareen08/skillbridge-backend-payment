@@ -10,10 +10,12 @@ export class CategoryService {
       
       // Get tutor count for each category
       const categoriesWithStats = await Promise.all(
-        categories.map(async (category) => {
+        categories.map(async (category: any) => {
+          const categoryName = category.name;
+          
           const tutorCount = await prisma.tutorProfile.count({
             where: {
-              subjects: { has: category.name },
+              subjects: { has: categoryName },
             },
           });
           
@@ -22,7 +24,7 @@ export class CategoryService {
               status: 'COMPLETED',
               tutor: {
                 tutorProfile: {
-                  subjects: { has: category.name },
+                  subjects: { has: categoryName },
                 },
               },
             },
@@ -34,8 +36,8 @@ export class CategoryService {
             description: category.description,
             icon: category.icon,
             createdAt: category.createdAt,
-            tutorCount,
-            bookingCount,
+            tutorCount: tutorCount || 0,
+            bookingCount: bookingCount || 0,
           };
         })
       );
@@ -50,6 +52,11 @@ export class CategoryService {
   // Get category by ID
   static async getCategoryById(categoryId: string) {
     try {
+      // Validate ID
+      if (!categoryId) {
+        throw new Error('Category ID is required');
+      }
+      
       const category = await prisma.category.findUnique({
         where: { id: categoryId },
       });
@@ -111,8 +118,8 @@ export class CategoryService {
       });
       
       const stats = {
-        totalTutors,
-        totalBookings,
+        totalTutors: totalTutors || 0,
+        totalBookings: totalBookings || 0,
         averageRating: ratingAggregate._avg.rating || 0,
       };
       
@@ -123,7 +130,7 @@ export class CategoryService {
         icon: category.icon,
         createdAt: category.createdAt,
         stats,
-        tutors,
+        tutors: tutors || [],
       };
     } catch (error) {
       console.error('Error getting category by ID:', error);
@@ -134,8 +141,12 @@ export class CategoryService {
   // Get category by name
   static async getCategoryByName(name: string) {
     try {
+      if (!name) {
+        throw new Error('Category name is required');
+      }
+      
       const category = await prisma.category.findUnique({
-        where: { name },
+        where: { name: name },
       });
       
       return category;
@@ -152,26 +163,26 @@ export class CategoryService {
     icon?: string;
   }) {
     try {
+      // Validate name
+      if (!data.name || data.name.trim().length === 0) {
+        throw new Error('Category name is required');
+      }
+      
       // Check if category already exists
       const existingCategory = await prisma.category.findUnique({
-        where: { name: data.name },
+        where: { name: data.name.trim() },
       });
       
       if (existingCategory) {
         throw new Error('Category already exists');
       }
       
-      // Validate name
-      if (!data.name || data.name.trim().length === 0) {
-        throw new Error('Category name is required');
-      }
-      
       // Create category
       const category = await prisma.category.create({
         data: {
           name: data.name.trim(),
-          description: data.description || null,
-          icon: data.icon || null,
+          description: data.description?.trim() || null,
+          icon: data.icon?.trim() || null,
         },
       });
       
@@ -192,6 +203,11 @@ export class CategoryService {
     }
   ) {
     try {
+      // Validate ID
+      if (!categoryId) {
+        throw new Error('Category ID is required');
+      }
+      
       // Check if category exists
       const existingCategory = await prisma.category.findUnique({
         where: { id: categoryId },
@@ -202,9 +218,9 @@ export class CategoryService {
       }
       
       // If name is being changed, check for duplicates
-      if (data.name && data.name !== existingCategory.name) {
+      if (data.name && data.name.trim() !== existingCategory.name) {
         const nameExists = await prisma.category.findUnique({
-          where: { name: data.name },
+          where: { name: data.name.trim() },
         });
         
         if (nameExists) {
@@ -217,8 +233,8 @@ export class CategoryService {
         where: { id: categoryId },
         data: {
           ...(data.name && { name: data.name.trim() }),
-          ...(data.description !== undefined && { description: data.description }),
-          ...(data.icon !== undefined && { icon: data.icon }),
+          ...(data.description !== undefined && { description: data.description?.trim() || null }),
+          ...(data.icon !== undefined && { icon: data.icon?.trim() || null }),
         },
       });
       
@@ -232,6 +248,11 @@ export class CategoryService {
   // Delete category (Admin only)
   static async deleteCategory(categoryId: string) {
     try {
+      // Validate ID
+      if (!categoryId) {
+        throw new Error('Category ID is required');
+      }
+      
       // Check if category exists
       const category = await prisma.category.findUnique({
         where: { id: categoryId },
@@ -273,7 +294,7 @@ export class CategoryService {
       });
       
       const categoriesWithCounts = await Promise.all(
-        categories.map(async (category) => {
+        categories.map(async (category: any) => {
           const tutorCount = await prisma.tutorProfile.count({
             where: {
               subjects: { has: category.name },
@@ -285,13 +306,13 @@ export class CategoryService {
             name: category.name,
             description: category.description,
             icon: category.icon,
-            tutorCount,
+            tutorCount: tutorCount || 0,
           };
         })
       );
       
-      // Sort by tutor count
-      return categoriesWithCounts.sort((a, b) => b.tutorCount - a.tutorCount);
+      // Sort by tutor count (highest first)
+      return categoriesWithCounts.sort((a: any, b: any) => b.tutorCount - a.tutorCount);
     } catch (error) {
       console.error('Error getting popular categories:', error);
       throw new Error('Failed to fetch popular categories');
@@ -301,6 +322,10 @@ export class CategoryService {
   // Search categories
   static async searchCategories(searchTerm: string) {
     try {
+      if (!searchTerm) {
+        return [];
+      }
+      
       const categories = await prisma.category.findMany({
         where: {
           OR: [
@@ -326,7 +351,7 @@ export class CategoryService {
       const allCategories = await prisma.category.findMany();
       
       const categoriesWithStats = await Promise.all(
-        allCategories.map(async (category) => {
+        allCategories.map(async (category: any) => {
           const tutorCount = await prisma.tutorProfile.count({
             where: {
               subjects: { has: category.name },
@@ -346,20 +371,20 @@ export class CategoryService {
           
           return {
             name: category.name,
-            tutorCount,
-            bookingCount,
+            tutorCount: tutorCount || 0,
+            bookingCount: bookingCount || 0,
           };
         })
       );
       
       const mostPopular = categoriesWithStats.length > 0 
-        ? categoriesWithStats.reduce((max, current) => 
+        ? categoriesWithStats.reduce((max: any, current: any) => 
             current.tutorCount > max.tutorCount ? current : max
           )
         : null;
       
       return {
-        totalCategories,
+        totalCategories: totalCategories || 0,
         categories: categoriesWithStats,
         mostPopular,
       };
@@ -376,20 +401,29 @@ export class CategoryService {
     icon?: string;
   }>) {
     try {
+      if (!categories || !Array.isArray(categories)) {
+        throw new Error('Categories array is required');
+      }
+      
       const results = [];
       
       for (const category of categories) {
         try {
+          if (!category.name) {
+            console.error('Skipping category with no name');
+            continue;
+          }
+          
           const existing = await prisma.category.findUnique({
-            where: { name: category.name },
+            where: { name: category.name.trim() },
           });
           
           if (!existing) {
             const created = await prisma.category.create({
               data: {
-                name: category.name,
-                description: category.description || null,
-                icon: category.icon || null,
+                name: category.name.trim(),
+                description: category.description?.trim() || null,
+                icon: category.icon?.trim() || null,
               },
             });
             results.push(created);
