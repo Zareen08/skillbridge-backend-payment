@@ -4,16 +4,20 @@ import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-// all routes protected
+// All routes protected
 router.use(authMiddleware);
 
-// Dashboard
+// Dashboard - GET /api/users/dashboard
 router.get('/dashboard', UserController.getDashboard);
 
-// Stats
+// Stats - GET /api/users/stats
 router.get('/stats', UserController.getUserStats);
 
-// Booking history
+// Booking history - GET /api/users/bookings
 router.get('/bookings', UserController.getBookingHistory);
+
+// Profile - GET/PUT /api/users/profile
+router.get('/profile', UserController.getProfile);
+router.put('/profile', UserController.updateProfile);
 
 export default router;

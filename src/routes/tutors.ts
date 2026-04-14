@@ -16,14 +16,19 @@ router.get('/top-rated', TutorController.getTopRated);
 // Search tutors by subject
 router.get('/search/subject/:subject', TutorController.searchBySubject);
 
-// Get single tutor by ID 
-router.get('/:id', TutorController.getTutorById);
-
-// Tutor only routes
+// Profile routes
+router.get('/profile', authMiddleware, roleMiddleware('TUTOR'), TutorController.getMyProfile);
 router.put('/profile', authMiddleware, roleMiddleware('TUTOR'), TutorController.updateProfile);
+
+// Availability routes
+router.get('/my-availability', authMiddleware, roleMiddleware('TUTOR'), TutorController.getMyAvailability);
 router.put('/availability', authMiddleware, roleMiddleware('TUTOR'), TutorController.updateAvailability);
+
+// Bookings and stats
 router.get('/my-bookings', authMiddleware, roleMiddleware('TUTOR'), TutorController.getMyBookings);
 router.get('/my-stats', authMiddleware, roleMiddleware('TUTOR'), TutorController.getMyStats);
-router.get('/my-availability', authMiddleware, roleMiddleware('TUTOR'), TutorController.getMyAvailability);
+
+// Get single tutor by ID 
+router.get('/:id', TutorController.getTutorById);
 
 export default router;

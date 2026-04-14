@@ -27,34 +27,29 @@ export class BookingService {
         throw new Error('Tutor profile not found');
       }
 
-      const newStart = data.date;
-      const newEnd   = new Date(newStart.getTime() + data.duration * 60_000);
+      const newStart = new Date(data.date);
+      const newEnd = new Date(newStart.getTime() + data.duration * 60000);
 
-      const conflictingBooking = await prisma.booking.findFirst({
+      // FIX: Proper conflict detection without invalid include
+      const conflictingBookings = await prisma.booking.findMany({
         where: {
           tutorId: data.tutorId,
-          status: { not: 'CANCELLED' },
-          date: { lt: newEnd },
-          AND: [
-            {
-              date: {
-                gte: new Date(newStart.getTime() - 8 * 60 * 60_000), 
-              },
-            },
-          ],
-        },
-        include: { id: true, date: true, duration: true } as any,
+          status: { not: 'CANCELLED' }
+        }
       });
 
-      // Secondary precise check
-      if (conflictingBooking) {
-        const existingEnd = new Date(
-          (conflictingBooking as any).date.getTime() +
-          (conflictingBooking as any).duration * 60_000
-        );
-        if (existingEnd > newStart) {
-          throw new Error('Tutor is already booked at this time');
-        }
+      // Check for time overlap
+      const hasConflict = conflictingBookings.some(booking => {
+        const bookingStart = new Date(booking.date);
+        const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+        
+        // Check if time ranges overlap
+        const overlap = (newStart < bookingEnd && newEnd > bookingStart);
+        return overlap;
+      });
+
+      if (hasConflict) {
+        throw new Error('Tutor is already booked at this time');
       }
 
       // Calculate total amount
@@ -65,7 +60,7 @@ export class BookingService {
         data: {
           studentId: data.studentId,
           tutorId: data.tutorId,
-          date: data.date,
+          date: newStart,
           duration: data.duration,
           totalAmount,
           notes: data.notes,
@@ -230,7 +225,7 @@ export class BookingService {
         throw new Error('You can only update bookings for your sessions');
       }
 
-      // Prevent invalid status 
+      // Prevent invalid status transitions
       if (booking.status === 'COMPLETED') {
         throw new Error('Cannot update a completed booking');
       }
@@ -285,10 +280,28 @@ export class BookingService {
     }
   }
 
-  // Delegates to ReviewService 
   static async updateTutorRating(tutorId: string) {
-    const { ReviewService } = await import('./reviewService');
-    await ReviewService.updateTutorRating(tutorId);
+    try {
+      const reviews = await prisma.review.findMany({
+        where: { tutorId }
+      });
+
+      if (reviews.length > 0) {
+        const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+        const avgRating = totalRating / reviews.length;
+
+        await prisma.tutorProfile.update({
+          where: { userId: tutorId },
+          data: {
+            rating: avgRating,
+            totalReviews: reviews.length,
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error('Error in updateTutorRating:', error);
+      throw error;
+    }
   }
 
   static async cancelBooking(bookingId: string, userId: string, role: string, reason?: string) {

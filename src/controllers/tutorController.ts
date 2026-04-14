@@ -303,6 +303,45 @@ export class TutorController {
     }
   }
 
+static async getMyProfile(req: AuthRequest, res: Response) {
+  try {
+    const userId = req.user!.id;
+    
+    const tutor = await prisma.tutorProfile.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          }
+        }
+      }
+    });
+    
+    if (!tutor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tutor profile not found',
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: tutor,
+    });
+    
+  } catch (error: any) {
+    console.error('Error in getMyProfile:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch profile',
+    });
+  }
+}
+
   static async getMyAvailability(req: AuthRequest, res: Response) {
     try {
       const userId = req.user!.id;

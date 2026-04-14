@@ -163,6 +163,135 @@ export class TutorService {
     }
   }
   
+  // ✅ NEW: Get tutor profile by user ID
+  static async getTutorProfileByUserId(userId: string) {
+    try {
+      const profile = await prisma.tutorProfile.findUnique({
+        where: { userId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+            }
+          }
+        }
+      });
+      
+      if (!profile) {
+        throw new Error('Tutor profile not found');
+      }
+      
+      return profile;
+    } catch (error) {
+      console.error('Error in getTutorProfileByUserId:', error);
+      throw error;
+    }
+  }
+  
+  // ✅ NEW: Get featured tutors
+  static async getFeaturedTutors(limit: number) {
+    try {
+      const tutors = await prisma.tutorProfile.findMany({
+        where: {
+          rating: { gte: 4.5 },
+          user: { isActive: true },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              email: true,
+            }
+          }
+        },
+        take: limit,
+        orderBy: { rating: 'desc' },
+      });
+      
+      return tutors;
+    } catch (error) {
+      console.error('Error in getFeaturedTutors:', error);
+      throw new Error('Failed to fetch featured tutors');
+    }
+  }
+  
+  // ✅ NEW: Get top rated tutors
+  static async getTopRated(limit: number) {
+    try {
+      const tutors = await prisma.tutorProfile.findMany({
+        where: {
+          rating: { gt: 0 },
+          user: { isActive: true },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              email: true,
+            }
+          }
+        },
+        take: limit,
+        orderBy: { rating: 'desc' },
+      });
+      
+      return tutors;
+    } catch (error) {
+      console.error('Error in getTopRated:', error);
+      throw new Error('Failed to fetch top rated tutors');
+    }
+  }
+  
+  // ✅ NEW: Search tutors by subject
+  static async searchBySubject(subject: string) {
+    try {
+      const tutors = await prisma.tutorProfile.findMany({
+        where: {
+          subjects: { has: subject },
+          user: { isActive: true },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              email: true,
+            }
+          }
+        },
+        orderBy: { rating: 'desc' },
+      });
+      
+      return tutors;
+    } catch (error) {
+      console.error('Error in searchBySubject:', error);
+      throw new Error('Failed to search tutors');
+    }
+  }
+  
+  // ✅ NEW: Get tutor availability
+  static async getAvailability(userId: string) {
+    try {
+      const profile = await prisma.tutorProfile.findUnique({
+        where: { userId },
+        select: { availability: true }
+      });
+      
+      return profile?.availability || {};
+    } catch (error) {
+      console.error('Error in getAvailability:', error);
+      throw new Error('Failed to fetch availability');
+    }
+  }
+  
   static async updateProfile(userId: string, data: {
     title?: string;
     bio?: string;

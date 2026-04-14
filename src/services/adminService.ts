@@ -534,68 +534,111 @@ export class AdminService {
   // Platform Analytics
   
   static async getPlatformAnalytics(startDate: Date, endDate: Date) {
-    // User growth over time
-    const userGrowth = await prisma.$queryRaw`
-      SELECT 
-        DATE_TRUNC('day', "createdAt") as date,
-        COUNT(*) as newUsers,
-        COUNT(CASE WHEN role = 'STUDENT' THEN 1 END) as newStudents,
-        COUNT(CASE WHEN role = 'TUTOR' THEN 1 END) as newTutors
-      FROM "User"
-      WHERE "createdAt" BETWEEN ${startDate} AND ${endDate}
-      GROUP BY DATE_TRUNC('day', "createdAt")
-      ORDER BY date ASC
-    `;
-    
-    // Booking trends
-    const bookingTrends = await prisma.$queryRaw`
-      SELECT 
-        DATE_TRUNC('day', "createdAt") as date,
-        COUNT(*) as totalBookings,
-        COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END) as completedBookings,
-        SUM("totalAmount") as revenue
-      FROM "Booking"
-      WHERE "createdAt" BETWEEN ${startDate} AND ${endDate}
-      GROUP BY DATE_TRUNC('day', "createdAt")
-      ORDER BY date ASC
-    `;
-    
-    // Popular subjects
-    const popularSubjects = await prisma.$queryRaw`
-      SELECT 
-        unnest(subjects) as subject,
-        COUNT(*) as tutorCount,
-        AVG(rating) as averageRating
-      FROM "TutorProfile"
-      GROUP BY subject
-      ORDER BY tutorCount DESC
-      LIMIT 10
-    `;
-    
-    // Tutor performance
-    const topTutors = await prisma.tutorProfile.findMany({
-      where: {
-        rating: { gt: 0 },
-      },
-      include: {
-        user: {
-          select: { name: true, email: true, avatar: true },
+    try {
+      // User growth over time 
+      const userGrowthRaw = await prisma.$queryRaw<any[]>`
+        SELECT 
+          DATE_TRUNC('day', "createdAt")::date as date,
+          COUNT(*)::int as "newUsers",
+          COUNT(CASE WHEN role = 'STUDENT' THEN 1 END)::int as "newStudents",
+          COUNT(CASE WHEN role = 'TUTOR' THEN 1 END)::int as "newTutors"
+        FROM "User"
+        WHERE "createdAt" BETWEEN ${startDate} AND ${endDate}
+        GROUP BY DATE_TRUNC('day', "createdAt")
+        ORDER BY date ASC
+      `;
+      
+      // Convert date format 
+      const userGrowth = userGrowthRaw.map(item => ({
+        date: new Date(item.date).toISOString().split('T')[0],
+        newusers: Number(item.newUsers) || 0,
+        newstudents: Number(item.newStudents) || 0,
+        newtutors: Number(item.newTutors) || 0,
+      }));
+      
+      // Booking trends 
+      const bookingTrendsRaw = await prisma.$queryRaw<any[]>`
+        SELECT 
+          DATE_TRUNC('day', "createdAt")::date as date,
+          COUNT(*)::int as "totalBookings",
+          COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END)::int as "completedBookings",
+          COALESCE(SUM("totalAmount")::float, 0) as revenue
+        FROM "Booking"
+        WHERE "createdAt" BETWEEN ${startDate} AND ${endDate}
+        GROUP BY DATE_TRUNC('day', "createdAt")
+        ORDER BY date ASC
+      `;
+      
+      // Convert date format 
+      const bookingTrends = bookingTrendsRaw.map(item => ({
+        date: new Date(item.date).toISOString().split('T')[0],
+        totalbookings: Number(item.totalBookings) || 0,
+        completedbookings: Number(item.completedBookings) || 0,
+        revenue: Number(item.revenue) || 0,
+      }));
+      
+      // Popular subjects 
+      const popularSubjectsRaw = await prisma.$queryRaw<any[]>`
+        SELECT 
+          unnest(subjects) as subject,
+          COUNT(*)::int as "tutorCount",
+          COALESCE(AVG(rating)::float, 0) as "averageRating"
+        FROM "TutorProfile"
+        GROUP BY subject
+        ORDER BY "tutorCount" DESC
+        LIMIT 10
+      `;
+      
+      const popularSubjects = popularSubjectsRaw.map(item => ({
+        subject: item.subject,
+        tutorcount: Number(item.tutorCount) || 0,
+        averagerating: Number(item.averageRating) || 0,
+      }));
+      
+      // Top tutors 
+      const topTutors = await prisma.tutorProfile.findMany({
+        where: {
+          rating: { gt: 0 },
         },
-      },
-      orderBy: [
-        { rating: 'desc' },
-        { totalReviews: 'desc' },
-      ],
-      take: 10,
-    });
-    
-    return {
-      userGrowth,
-      bookingTrends,
-      popularSubjects,
-      topTutors,
-      dateRange: { startDate, endDate },
-    };
+        include: {
+          user: {
+            select: { 
+              id: true,
+              name: true, 
+              email: true, 
+              avatar: true 
+            },
+          },
+        },
+        orderBy: [
+          { rating: 'desc' },
+          { totalReviews: 'desc' },
+        ],
+        take: 10,
+      });
+      
+      const formattedTopTutors = topTutors.map(tutor => ({
+        id: tutor.id,
+        title: tutor.title,
+        rating: Number(tutor.rating) || 0,
+        totalreviews: tutor.totalReviews || 0,  
+        hourlyrate: tutor.hourlyRate || 0,      
+        totalstudents: 0,
+        user: tutor.user,
+        subjects: tutor.subjects,
+      }));
+      
+      return {
+        userGrowth,
+        bookingTrends,
+        popularSubjects,
+        topTutors: formattedTopTutors,
+        dateRange: { startDate, endDate },
+      };
+    } catch (error) {
+      console.error('Error in getPlatformAnalytics:', error);
+      throw new Error('Failed to fetch platform analytics');
+    }
   }
   
   // System Health

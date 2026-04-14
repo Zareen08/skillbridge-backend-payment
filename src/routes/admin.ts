@@ -5,7 +5,7 @@ const router = Router();
 
 // Dashboard & Stats
 router.get('/dashboard/stats', AdminController.getDashboardStats);
-router.get('/analytics', AdminController.getPlatformAnalytics);
+router.get('/analytics/platform', AdminController.getPlatformAnalytics);
 router.get('/health', AdminController.getSystemHealth);
 
 // User Management

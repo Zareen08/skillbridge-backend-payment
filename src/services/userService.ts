@@ -161,24 +161,40 @@ export class UserService {
       });
 
       const completed = bookings.filter(b => b.status === 'COMPLETED');
+      
+      const reviewsWithRatings = completed.filter(b => b.review);
+      const averageRating = reviewsWithRatings.length > 0
+        ? reviewsWithRatings.reduce((sum, b) => sum + (b.review?.rating || 0), 0) / reviewsWithRatings.length
+        : 0;
 
       return {
         role: 'STUDENT',
         totalBookings: bookings.length,
         completedBookings: completed.length,
         totalSpent: completed.reduce((s, b) => s + b.totalAmount, 0),
+        averageRating: parseFloat(averageRating.toFixed(1)), 
       };
     }
 
     if (user.role === 'TUTOR') {
       const bookings = await prisma.booking.findMany({
         where: { tutorId: userId },
+        include: { review: true },
       });
+
+      const completed = bookings.filter(b => b.status === 'COMPLETED');
+      
+      const reviewsWithRatings = completed.filter(b => b.review);
+      const averageRating = reviewsWithRatings.length > 0
+        ? reviewsWithRatings.reduce((sum, b) => sum + (b.review?.rating || 0), 0) / reviewsWithRatings.length
+        : user.tutorProfile?.rating || 0;
 
       return {
         role: 'TUTOR',
         totalBookings: bookings.length,
-        totalEarnings: bookings.reduce((s, b) => s + b.totalAmount, 0),
+        completedBookings: completed.length,
+        totalEarnings: completed.reduce((s, b) => s + b.totalAmount, 0),
+        averageRating: parseFloat(averageRating.toFixed(1)), 
       };
     }
 
@@ -187,21 +203,44 @@ export class UserService {
 
   // BOOKING HISTORY 
   static async getBookingHistory(userId: string, role: string) {
-    const where =
-      role === 'STUDENT'
-        ? { studentId: userId }
-        : { tutorId: userId };
+    const where = role === 'STUDENT'
+      ? { studentId: userId }
+      : { tutorId: userId };
 
     const bookings = await prisma.booking.findMany({
       where,
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        tutor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            tutorProfile: {
+              select: {
+                title: true,
+              },
+            },
+          },
+        },
+        review: true,
+      },
       orderBy: { date: 'desc' },
     });
 
     const now = new Date();
 
     return {
-      upcoming: bookings.filter(b => new Date(b.date) > now),
-      past: bookings.filter(b => new Date(b.date) <= now),
+      upcoming: bookings.filter(b => new Date(b.date) > now && b.status === 'CONFIRMED'),
+      past: bookings.filter(b => new Date(b.date) <= now || b.status !== 'CONFIRMED'),
       all: bookings,
     };
   }

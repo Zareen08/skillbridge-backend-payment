@@ -6,19 +6,23 @@ import { AuthRequest } from '../middleware/auth';
 export class BookingController {
 
   // Create Booking
-  static async createBooking(req: AuthRequest, res: Response) {
+    static async createBooking(req: AuthRequest, res: Response) {
     try {
       const { tutorId, date, duration, notes } = req.body;
 
       if (!tutorId || !date || !duration) {
         return res.status(400).json({
+          success: false,  
           message: 'tutorId, date, duration are required',
         });
       }
 
       const parsedDate = new Date(date);
       if (isNaN(parsedDate.getTime())) {
-        return res.status(400).json({ message: 'Invalid date format' });
+        return res.status(400).json({ 
+          success: false,  
+          message: 'Invalid date format' 
+        });
       }
 
       const booking = await BookingService.createBooking({
@@ -41,18 +45,28 @@ export class BookingController {
         error.message === 'Tutor not found' ||
         error.message === 'Tutor profile not found'
       ) {
-        return res.status(404).json({ message: error.message });
+        return res.status(404).json({ 
+          success: false,  
+          message: error.message 
+        });
       }
 
       if (error.message === 'Tutor account is inactive') {
-        return res.status(403).json({ message: error.message });
+        return res.status(403).json({ 
+          success: false,  
+          message: error.message 
+        });
       }
 
       if (error.message === 'Tutor is already booked at this time') {
-        return res.status(409).json({ message: error.message });
+        return res.status(409).json({ 
+          success: false,  
+          message: error.message 
+        });
       }
 
       return res.status(500).json({
+        success: false,  
         message: error.message || 'Error creating booking',
       });
     }
