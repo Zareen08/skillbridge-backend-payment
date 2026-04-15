@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { AdminController } from '../controllers/adminController';
+import { authMiddleware, roleMiddleware } from '../middleware/auth';
 
 const router = Router();
+
+router.use(authMiddleware);
+router.use(roleMiddleware('ADMIN'));
 
 // Dashboard & Stats
 router.get('/dashboard/stats', AdminController.getDashboardStats);

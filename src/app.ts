@@ -16,7 +16,7 @@ const app = express();
 
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-  : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
+  : ['http://localhost:3000', 'http://localhost:3001', 'https://skillbridge-frontend-ten.vercel.app', '/\.vercel\.app$/'];
 
 app.use(
   cors({
