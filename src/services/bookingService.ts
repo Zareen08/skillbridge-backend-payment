@@ -65,6 +65,7 @@ export class BookingService {
           totalAmount,
           notes: data.notes,
           status: 'CONFIRMED',
+          paymentStatus: 'pending',
           isReviewed: false,
         },
         include: {

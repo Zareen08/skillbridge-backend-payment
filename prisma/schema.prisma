@@ -81,6 +81,7 @@ model Booking {
   duration      Int
   totalAmount   Float
   status        BookingStatus @default(CONFIRMED)
+  paymentStatus String @default("pending")
   notes         String?
   isReviewed    Boolean       @default(false)
   createdAt     DateTime      @default(now())
@@ -90,10 +91,23 @@ model Booking {
   tutor         User @relation("TutorBookings", fields: [tutorId], references: [id])
 
   review        Review?
+  payment       Payment? 
 
   @@unique([tutorId, date])   // prevent double booking
   @@index([studentId])
   @@index([tutorId])
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  bookingId       String   @unique
+  booking         Booking  @relation(fields: [bookingId], references: [id])
+  amount          Float
+  currency        String   @default("usd")
+  status          String   @default("pending") // pending, successful, failed, refunded
+  paymentIntentId String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Review {
