@@ -1,106 +1,102 @@
 import prisma from '../config/database';
 
 export class BookingService {
-  static async createBooking(data: {
-    studentId: string;
-    tutorId: string;
-    date: Date;
-    duration: number;
-    notes?: string;
-  }) {
-    try {
-      // Get tutor details
-      const tutor = await prisma.user.findUnique({
-        where: { id: data.tutorId },
-        include: { tutorProfile: true }
-      });
+ static async createBooking(data: {
+  studentId: string;
+  tutorId: string;
+  date: Date;
+  duration: number;
+  notes?: string;
+}) {
+  try {
+    // Get tutor details
+    const tutor = await prisma.user.findUnique({
+      where: { id: data.tutorId },
+      include: { tutorProfile: true }
+    });
 
-      if (!tutor || tutor.role !== 'TUTOR') {
-        throw new Error('Tutor not found');
+    if (!tutor || tutor.role !== 'TUTOR') {
+      throw new Error('Tutor not found');
+    }
+
+    if (!tutor.isActive) {
+      throw new Error('Tutor account is inactive');
+    }
+
+    if (!tutor.tutorProfile) {
+      throw new Error('Tutor profile not found');
+    }
+
+    const newStart = data.date;
+    const newEnd = new Date(newStart.getTime() + data.duration * 60000);
+
+    // Check for conflicting bookings
+    const conflictingBookings = await prisma.booking.findMany({
+      where: {
+        tutorId: data.tutorId,
+        status: { not: 'CANCELLED' }
       }
+    });
 
-      if (!tutor.isActive) {
-        throw new Error('Tutor account is inactive');
-      }
+    const hasConflict = conflictingBookings.some(booking => {
+      const bookingStart = new Date(booking.date);
+      const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+      return (newStart < bookingEnd && newEnd > bookingStart);
+    });
 
-      if (!tutor.tutorProfile) {
-        throw new Error('Tutor profile not found');
-      }
+    if (hasConflict) {
+      throw new Error('Tutor is already booked at this time');
+    }
 
-      const newStart = new Date(data.date);
-      const newEnd = new Date(newStart.getTime() + data.duration * 60000);
+    // Calculate total amount
+    const totalAmount = (tutor.tutorProfile.hourlyRate * data.duration) / 60;
 
-      // FIX: Proper conflict detection without invalid include
-      const conflictingBookings = await prisma.booking.findMany({
-        where: {
-          tutorId: data.tutorId,
-          status: { not: 'CANCELLED' }
-        }
-      });
-
-      // Check for time overlap
-      const hasConflict = conflictingBookings.some(booking => {
-        const bookingStart = new Date(booking.date);
-        const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
-        
-        // Check if time ranges overlap
-        const overlap = (newStart < bookingEnd && newEnd > bookingStart);
-        return overlap;
-      });
-
-      if (hasConflict) {
-        throw new Error('Tutor is already booked at this time');
-      }
-
-      // Calculate total amount
-      const totalAmount = (tutor.tutorProfile.hourlyRate * data.duration) / 60;
-
-      // Create booking
-      const booking = await prisma.booking.create({
-        data: {
-          studentId: data.studentId,
-          tutorId: data.tutorId,
-          date: newStart,
-          duration: data.duration,
-          totalAmount,
-          notes: data.notes,
-          status: 'CONFIRMED',
-          paymentStatus: 'pending',
-          isReviewed: false,
+    // Create booking with PENDING status (not CONFIRMED)
+    const booking = await prisma.booking.create({
+      data: {
+        studentId: data.studentId,
+        tutorId: data.tutorId,
+        date: newStart,
+        duration: data.duration,
+        totalAmount,
+        notes: data.notes,
+        status: 'PENDING_PAYMENT',  
+        paymentStatus: 'pending',
+        isReviewed: false,
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true
+          }
         },
-        include: {
-          student: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              avatar: true
-            }
-          },
-          tutor: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              avatar: true,
-              tutorProfile: {
-                select: {
-                  id: true,
-                  title: true,
-                  hourlyRate: true
-                }
+        tutor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            tutorProfile: {
+              select: {
+                id: true,
+                title: true,
+                hourlyRate: true
               }
             }
           }
         }
-      });
+      }
+    });
 
-      return booking;
-    } catch (error: any) {
-      console.error('Error in createBooking:', error);
-      throw error;
-    }
+    return booking;
+  } catch (error: any) {
+    console.error('Error in createBooking:', error);
+    throw error;
   }
+}
 
   static async getUserBookings(userId: string, role: string) {
     try {
