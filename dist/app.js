@@ -13,12 +13,13 @@ const bookings_1 = __importDefault(require("./routes/bookings"));
 const reviews_1 = __importDefault(require("./routes/reviews"));
 const categories_1 = __importDefault(require("./routes/categories"));
 const admin_1 = __importDefault(require("./routes/admin"));
+const payment_1 = __importDefault(require("./routes/payment"));
 const errorHandler_1 = require("./middleware/errorHandler");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const allowedOrigins = process.env.CORS_ORIGIN
     ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-    : ['http://localhost:3000', 'http://localhost:3001', '/\.vercel\.app$/'];
+    : ['http://localhost:3000', 'http://localhost:3001', 'https://skillbridge-frontend-payment.onrender.com', '/\\.vercel\\.app$/'];
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
         if (!origin)
@@ -62,6 +63,7 @@ app.get('/', (_req, res) => {
             reviews: '/api/reviews',
             categories: '/api/categories',
             admin: '/api/admin',
+            payments: '/api/payments',
         },
     });
 });
@@ -73,6 +75,7 @@ app.use('/api/bookings', bookings_1.default);
 app.use('/api/reviews', reviews_1.default);
 app.use('/api/categories', categories_1.default);
 app.use('/api/admin', admin_1.default);
+app.use('/api/payments', payment_1.default);
 // 404 handler
 app.use((req, res) => {
     res.status(404).json({

@@ -25,6 +25,20 @@ class PaymentService {
             if (!booking) {
                 throw new Error('Booking not found');
             }
+            // (prevents duplicate payment records if user refreshes the payment page)
+            const existingPayment = await database_1.default.payment.findUnique({
+                where: { bookingId: booking.id },
+            });
+            if (existingPayment) {
+                // Reuse the existing payment intent instead of creating a new one
+                const existingIntent = await stripe.paymentIntents.retrieve(existingPayment.paymentIntentId);
+                // Only reuse if it's still in a usable state
+                if (existingIntent.status === 'requires_payment_method' ||
+                    existingIntent.status === 'requires_confirmation' ||
+                    existingIntent.status === 'requires_action') {
+                    return { clientSecret: existingIntent.client_secret };
+                }
+            }
             // Create payment intent
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: Math.round(booking.totalAmount * 100),
@@ -54,25 +68,23 @@ class PaymentService {
             throw error;
         }
     }
-    // Confirm payment after successful charge 
+    // Confirm payment after successful charge
     static async confirmPayment(bookingId, paymentIntentId) {
         try {
-            // Retrieve payment intent from Stripe
             const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
             if (paymentIntent.status !== 'succeeded') {
                 throw new Error('Payment not successful');
             }
-            // Update payment record
             await database_1.default.payment.update({
                 where: { paymentIntentId },
-                data: { status: 'successful' },
+                data: { status: 'succeeded' },
             });
-            // Update booking status
+            // Update booking from PENDING_PAYMENT to CONFIRMED
             const booking = await database_1.default.booking.update({
                 where: { id: bookingId },
                 data: {
                     status: 'CONFIRMED',
-                    paymentStatus: 'paid'
+                    paymentStatus: 'paid',
                 },
             });
             return booking;

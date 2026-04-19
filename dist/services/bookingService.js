@@ -22,29 +22,26 @@ class BookingService {
             if (!tutor.tutorProfile) {
                 throw new Error('Tutor profile not found');
             }
-            const newStart = new Date(data.date);
+            const newStart = data.date;
             const newEnd = new Date(newStart.getTime() + data.duration * 60000);
-            // FIX: Proper conflict detection without invalid include
+            // Check for conflicting bookings
             const conflictingBookings = await database_1.default.booking.findMany({
                 where: {
                     tutorId: data.tutorId,
                     status: { not: 'CANCELLED' }
                 }
             });
-            // Check for time overlap
             const hasConflict = conflictingBookings.some(booking => {
                 const bookingStart = new Date(booking.date);
                 const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
-                // Check if time ranges overlap
-                const overlap = (newStart < bookingEnd && newEnd > bookingStart);
-                return overlap;
+                return (newStart < bookingEnd && newEnd > bookingStart);
             });
             if (hasConflict) {
                 throw new Error('Tutor is already booked at this time');
             }
             // Calculate total amount
             const totalAmount = (tutor.tutorProfile.hourlyRate * data.duration) / 60;
-            // Create booking
+            // Create booking with PENDING status (not CONFIRMED)
             const booking = await database_1.default.booking.create({
                 data: {
                     studentId: data.studentId,
@@ -53,7 +50,7 @@ class BookingService {
                     duration: data.duration,
                     totalAmount,
                     notes: data.notes,
-                    status: 'CONFIRMED',
+                    status: 'PENDING_PAYMENT',
                     paymentStatus: 'pending',
                     isReviewed: false,
                 },
