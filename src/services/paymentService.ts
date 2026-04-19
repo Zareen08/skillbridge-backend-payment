@@ -6,7 +6,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 export class PaymentService {
-  // Create payment intent for booking
   static async createPaymentIntent(bookingId: string) {
     try {
       const booking = await prisma.booking.findUnique({
@@ -23,7 +22,6 @@ export class PaymentService {
         throw new Error('Booking not found');
       }
 
-      // Create payment intent
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(booking.totalAmount * 100),
         currency: 'usd',
@@ -34,13 +32,12 @@ export class PaymentService {
         },
       });
 
-      // Save payment record
       await prisma.payment.create({
         data: {
           bookingId: booking.id,
           amount: booking.totalAmount,
           currency: 'usd',
-          status: 'pending',
+          status: 'pending',  
           paymentIntentId: paymentIntent.id,
         },
       });
@@ -54,33 +51,32 @@ export class PaymentService {
     }
   }
 
-  // Confirm payment after successful charge 
   static async confirmPayment(bookingId: string, paymentIntentId: string) {
-  try {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    try {
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-    if (paymentIntent.status !== 'succeeded') {
-      throw new Error('Payment not successful');
+      if (paymentIntent.status !== 'succeeded') {
+        throw new Error('Payment not successful');
+      }
+
+      // Update payment status to 'succeeded' 
+      await prisma.payment.update({
+        where: { paymentIntentId },
+        data: { status: 'succeeded' },  
+      });
+
+      const booking = await prisma.booking.update({
+        where: { id: bookingId },
+        data: { 
+          status: 'CONFIRMED',
+          paymentStatus: 'paid'
+        },
+      });
+
+      return booking;
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      throw error;
     }
-
-    await prisma.payment.update({
-      where: { paymentIntentId },
-      data: { status: 'successful' },
-    });
-
-    // Update booking from PENDING_PAYMENT to CONFIRMED
-    const booking = await prisma.booking.update({
-      where: { id: bookingId },
-      data: { 
-        status: 'CONFIRMED',  // ← Change to CONFIRMED after payment
-        paymentStatus: 'paid'
-      },
-    });
-
-    return booking;
-  } catch (error) {
-    console.error('Error confirming payment:', error);
-    throw error;
   }
-}
 }

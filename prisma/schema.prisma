@@ -20,6 +20,13 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  refunded
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique

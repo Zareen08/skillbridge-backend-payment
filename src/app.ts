@@ -8,7 +8,7 @@ import bookingRoutes from './routes/bookings';
 import reviewRoutes from './routes/reviews';
 import categoryRoutes from './routes/categories';
 import adminRoutes from './routes/admin';
-import paymentRoutes from './routes/payment';
+import paymentRoutes from './routes/payment'; 
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
@@ -60,7 +60,7 @@ app.get('/', (_req, res) => {
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
-      payments: '/api/payment/*',
+      payments: '/api/payment/*',  
       users: '/api/users',
       tutors: '/api/tutors',
       bookings: '/api/bookings',
@@ -79,7 +79,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/payments', paymentRoutes);
+app.use('/api/payment', paymentRoutes); 
 
 // 404 handler
 app.use((req, res) => {
