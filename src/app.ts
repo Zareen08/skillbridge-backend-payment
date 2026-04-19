@@ -17,7 +17,7 @@ const app = express();
 
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
-  : ['http://localhost:3000', 'http://localhost:3001', 'https://skillbridge-frontend-payment.onrender.com', '/\.vercel\.app$/'];
+  : ['http://localhost:3000', 'http://localhost:3001', 'https://skillbridge-frontend-payment.onrender.com', '/\\.vercel\\.app$/'];
 
 app.use(
   cors({
@@ -60,13 +60,13 @@ app.get('/', (_req, res) => {
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
-      payments: '/api/payment/*',  
       users: '/api/users',
       tutors: '/api/tutors',
       bookings: '/api/bookings',
       reviews: '/api/reviews',
       categories: '/api/categories',
       admin: '/api/admin',
+      payments: '/api/payments', 
     },
   });
 });
@@ -79,7 +79,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/payment', paymentRoutes); 
+app.use('/api/payments', paymentRoutes); 
 
 // 404 handler
 app.use((req, res) => {
