@@ -81,7 +81,7 @@ model Booking {
   date          DateTime
   duration      Int
   totalAmount   Float
-  status        BookingStatus @default(CONFIRMED)
+  status        BookingStatus @default(PENDING_PAYMENT)
   paymentStatus String @default("pending")
   notes         String?
   isReviewed    Boolean       @default(false)
