@@ -60,6 +60,7 @@ app.get('/', (_req, res) => {
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
+      payments: '/api/payment/*',
       users: '/api/users',
       tutors: '/api/tutors',
       bookings: '/api/bookings',
